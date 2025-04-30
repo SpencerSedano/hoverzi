@@ -18,8 +18,6 @@ type Entry = {
 let dictionaryMap: Record<string, Entry> = {};
 let rawData: Entry[];
 
-// let isDictionaryLoaded = false;
-
 async function loadDictionary() {
   const res = await fetch(chrome.runtime.getURL("data.json"));
   console.log(`This is the dictioanry ${res}`);

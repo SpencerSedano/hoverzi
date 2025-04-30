@@ -1,60 +1,17 @@
-// import { sampleFunction } from "@src/sampleFunction";
-
-// console.log("content script loaded");
-
-// Shows how to call a function defined in another module
-// sampleFunction();
-
-//Start my app
-
-// interface CEDICTEntry {
-//   simplified: string;
-//   traditional: string;
-//   pinyin: string;
-//   definitions: string[];
-// }
-
-// let cedictData: CEDICTEntry[] | null = null;
-
-// async function loadCEDICT() {
-//   // If data is already cached, return it directly
-//   if (cedictData) {
-//     console.log("Using cached CEDICT entries");
-//     return cedictData;
-//   }
-
-//   try {
-//     const res = await fetch(chrome.runtime.getURL("public/cedict_ts.json"));
-//     console.log(`this is res ${res}`);
-//     if (!res.ok) {
-//       throw new Error(`Failed to fetch CEDICT: ${res.statusText}`);
-//     }
-
-//     const data = await res.json();
-//     cedictData = data; // Cache the data for later use
-//     console.log("CEDICT entries:", data.slice(0, 5)); // Print first 5 entries
-//     return cedictData;
-//   } catch (error) {
-//     console.error("Error loading CEDICT:", error);
-//     return []; // Return an empty array in case of error
-//   }
-// }
-
 function isChinese(char: string): boolean {
-  const regex = /[\u4e00-\u9fff]/;
-  return regex.test(char);
+  return /[\u4e00-\u9fff]/.test(char);
 }
 
-function selectCharacter(node: Text, charIndex: number) {
+function selectWord(node: Text, start: number, end: number) {
   const range = document.createRange();
   const selection = window.getSelection();
   if (!selection) return;
 
-  selection.removeAllRanges(); // Remove any previous selection
-  console.log("Node: ", node);
-  console.log(node.length);
-  range.setStart(node, charIndex);
-  range.setEnd(node, charIndex + 1);
+  const clampedEnd = Math.min(end, node.length);
+
+  selection.removeAllRanges();
+  range.setStart(node, start);
+  range.setEnd(node, clampedEnd);
   selection.addRange(range);
 }
 
@@ -75,12 +32,11 @@ function showPopupAtSelection(event: MouseEvent, definition: string) {
 
   const selection = window.getSelection();
   if (selection && selection.rangeCount > 0) {
-    const range = selection.getRangeAt(0);
-    const rects = range.getClientRects();
+    const rects = selection.getRangeAt(0).getClientRects();
     if (rects.length > 0) {
       const rect = rects[0];
       popup.style.left = `${window.scrollX + rect.left}px`;
-      popup.style.top = `${window.scrollY + rect.top - 40}px`;
+      popup.style.top = `${window.scrollY + rect.top - 60}px`;
     }
   }
 
@@ -88,90 +44,86 @@ function showPopupAtSelection(event: MouseEvent, definition: string) {
   setTimeout(() => popup.remove(), 4000);
 }
 
-// Debounce logic
+function sendMessageAsync<T = unknown>(message: object): Promise<T> {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(message, response => {
+      if (chrome.runtime.lastError) {
+        reject(chrome.runtime.lastError);
+      } else {
+        resolve(response);
+      }
+    });
+  });
+}
+
+let rawDataCache: { traditional: string; english: string }[] | null = null;
 let lastTarget: Node | null = null;
 let lastIndex: number | null = null;
 
 document.addEventListener("mousemove", async (event: MouseEvent) => {
-  // Create an async function inside the event handler
   const handleMouseMove = async () => {
     let range: Range | null = null;
 
-    /* Mouse Position */
     if (document.caretPositionFromPoint) {
       const position = document.caretPositionFromPoint(event.clientX, event.clientY);
-      // console.log(`This is pos: ${pos?.offsetNode}`);
       if (position) {
         range = document.createRange();
-        // console.log(`Offset : ${position.offset}`);
         range.setStart(position.offsetNode, position.offset);
-        range.setEnd(position.offsetNode, position.offset); // select 1 character
+        range.setEnd(position.offsetNode, position.offset);
       }
     }
 
-    if (!range || !range.startContainer || range.startContainer.nodeType !== Node.TEXT_NODE) return;
+    if (!range || range.startContainer.nodeType !== Node.TEXT_NODE) return;
 
     const textNode = range.startContainer as Text;
     const offset = range.startOffset;
-    const char = textNode.textContent?.[offset];
+    const text = textNode.textContent || "";
 
-    /* Check if character is a Chinese Character */
-    if (char && isChinese(char)) {
-      // Prevent repeated highlighting on the same char
-      console.log(char);
-      if (lastTarget === textNode && lastIndex === offset) return;
+    if (offset >= text.length || !isChinese(text[offset])) return;
 
-      lastTarget = textNode;
-      lastIndex = offset;
+    if (lastTarget === textNode && lastIndex === offset) return;
 
-      selectCharacter(textNode, offset);
+    lastTarget = textNode;
+    lastIndex = offset;
 
-      // const entry = rawData.find(e => e.traditional === message.word);
-      // console.log(`This is the entry ${entry}`);
+    try {
+      if (!rawDataCache) {
+        rawDataCache = await sendMessageAsync<{ traditional: string; english: string }[]>({ type: "RAWDATA" });
+      }
 
-      chrome.runtime.sendMessage({ type: "RAWDATA" }, response => {
-        console.log("Received RAWDATA", response);
-        const entry = response.find((e: { traditional: string }) => e.traditional === char);
-        showPopupAtSelection(event, entry.english);
-        console.log(entry.english);
-      });
+      const maxLength = 10;
+      let matchedWord = "";
+      let matchedDef = "";
+      let matchedLength = 0;
 
-      // showPopupAtSelection(event, response.definition);
+      for (let len = maxLength; len > 0; len--) {
+        const end = offset + len;
+        if (end > text.length) continue;
 
-      // const cedict = await loadCEDICT();
-      // const entry = cedict?.find(e => e.simplified === char || e.traditional === char);
-      // if (entry) {
-      //   showPopupAtSelection(event, `${char} - ${entry.pinyin}: ${entry.definitions.join(", ")}`);
-      // }
-      // console.log("Chinese character:", char);
+        const candidate = text.slice(offset, end);
+        const entry = rawDataCache.find(e => e.traditional === candidate);
+        if (entry) {
+          matchedWord = candidate;
+          matchedDef = entry.english;
+          matchedLength = len;
+          break;
+        }
+      }
 
-      // try {
-      // chrome.runtime.sendMessage({ type: "LOOKUP_WORD", char }, response => {
-      //   if (chrome.runtime.lastError) {
-      //     console.warn("Runtime error:", chrome.runtime.lastError.message);
-      //     return;
-      //   }
-      // if (response?.definition) {
-      //   console.log(`Definition: ${response.definition}`);
-      //   showPopupAtSelection(event, response.definition);
-      // }
-      // });
-      // } catch (error) {
-      //   console.warn("Failed to send message:", error);
-      // }
+      if (matchedWord && matchedLength > 0) {
+        selectWord(textNode, offset, offset + matchedLength);
+        showPopupAtSelection(event, matchedDef);
+      } else {
+        selectWord(textNode, offset, offset + 1);
+        const charEntry = rawDataCache.find(e => e.traditional === text[offset]);
+        if (charEntry) {
+          showPopupAtSelection(event, charEntry.english);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading or processing dictionary:", error);
     }
-    // const word = (event.target as HTMLElement)?.innerText?.trim();
-    // if (word && /^[a-zA-Z]+$/.test(word)) {
-    //   chrome.runtime.sendMessage({ type: "LOOKUP_WORD", word }, response => {
-    //     if (response?.definition) {
-    //       console.log(`Definition: ${response.definition}`);
-    //       // You can display it in a floating tooltip or modal here
-    //     }
-    //   });
-    // }
-    // console.log(word);
   };
 
-  // Call the async function inside the event handler
   handleMouseMove();
 });
