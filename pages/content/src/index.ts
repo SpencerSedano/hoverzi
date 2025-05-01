@@ -15,13 +15,13 @@ function selectWord(node: Text, start: number, end: number) {
   selection.addRange(range);
 }
 
-function showPopupAtSelection(event: MouseEvent, definition: string) {
+function showPopupAtSelection(event: MouseEvent, definition: string, pinyin: string) {
   const existingPopup = document.querySelector(".custom-popup");
   if (existingPopup) existingPopup.remove();
 
   const popup = document.createElement("div");
   popup.className = "custom-popup";
-  popup.textContent = definition;
+  popup.textContent = `${definition}, ${pinyin}`;
   popup.style.position = "absolute";
   popup.style.backgroundColor = "#f0f0f0";
   popup.style.border = "1px solid #ccc";
@@ -56,7 +56,7 @@ function sendMessageAsync<T = unknown>(message: object): Promise<T> {
   });
 }
 
-let rawDataCache: { traditional: string; english: string }[] | null = null;
+let rawDataCache: { traditional: string; english: string; pinyin: string }[] | null = null;
 let lastTarget: Node | null = null;
 let lastIndex: number | null = null;
 
@@ -88,12 +88,15 @@ document.addEventListener("mousemove", async (event: MouseEvent) => {
 
     try {
       if (!rawDataCache) {
-        rawDataCache = await sendMessageAsync<{ traditional: string; english: string }[]>({ type: "RAWDATA" });
+        rawDataCache = await sendMessageAsync<{ traditional: string; english: string; pinyin: string }[]>({
+          type: "RAWDATA",
+        });
       }
 
       const maxLength = 10;
       let matchedWord = "";
       let matchedDef = "";
+      let matchedPinyin = "";
       let matchedLength = 0;
 
       for (let len = maxLength; len > 0; len--) {
@@ -105,19 +108,21 @@ document.addEventListener("mousemove", async (event: MouseEvent) => {
         if (entry) {
           matchedWord = candidate;
           matchedDef = entry.english;
+          matchedPinyin = entry.pinyin;
           matchedLength = len;
           break;
         }
       }
 
       if (matchedWord && matchedLength > 0) {
+        console.log(matchedPinyin);
         selectWord(textNode, offset, offset + matchedLength);
-        showPopupAtSelection(event, matchedDef);
+        showPopupAtSelection(event, matchedDef, matchedPinyin);
       } else {
         selectWord(textNode, offset, offset + 1);
         const charEntry = rawDataCache.find(e => e.traditional === text[offset]);
         if (charEntry) {
-          showPopupAtSelection(event, charEntry.english);
+          showPopupAtSelection(event, charEntry.english, matchedPinyin);
         }
       }
     } catch (error) {
