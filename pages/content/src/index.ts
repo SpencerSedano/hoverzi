@@ -2,6 +2,54 @@ function isChinese(char: string): boolean {
   return /[\u4e00-\u9fff]/.test(char);
 }
 
+function convertPinyinTones(input: string) {
+  const toneMarks: { [key: string]: string[] } = {
+    a: ["ā", "á", "ǎ", "à"],
+    o: ["ō", "ó", "ǒ", "ò"],
+    e: ["ē", "é", "ě", "è"],
+    i: ["ī", "í", "ǐ", "ì"],
+    u: ["ū", "ú", "ǔ", "ù"],
+    ü: ["ǖ", "ǘ", "ǚ", "ǜ"],
+  };
+
+  return input
+    .split(" ")
+    .map(word => {
+      const toneMatch = word.match(/[1-5]/);
+      if (!toneMatch) return word; // No tone number, return as is
+
+      const toneNumber = parseInt(toneMatch[0], 10);
+      const toneIndex = toneNumber - 1; // 1 → 0th index, etc.
+      const cleanWord = word.replace(/[1-5]/, "");
+
+      // Determine the vowel that should get the tone
+      const priority = ["a", "o", "e"];
+      let target = priority.find(v => cleanWord.includes(v));
+
+      if (!target && cleanWord.includes("iu")) {
+        target = "u";
+      } else if (!target && cleanWord.includes("ui")) {
+        target = "i";
+      } else if (!target) {
+        target = cleanWord.split("").find(l => "aeiouü".includes(l));
+      }
+
+      // Replace the target vowel with the tone-marked version
+      const result = cleanWord
+        .split("")
+        .map(char => {
+          if (char === target && toneIndex < 4) {
+            return toneMarks[char]?.[toneIndex] || char;
+          }
+          return char;
+        })
+        .join("");
+
+      return result;
+    })
+    .join(" ");
+}
+
 function selectWord(node: Text, start: number, end: number) {
   const range = document.createRange();
   const selection = window.getSelection();
@@ -46,6 +94,11 @@ function showPopupAtSelection(event: MouseEvent, definition: string, pinyin: str
 
 function sendMessageAsync<T = unknown>(message: object): Promise<T> {
   return new Promise((resolve, reject) => {
+    if (!chrome?.runtime?.sendMessage) {
+      reject(new Error("chrome.runtime.sendMessage is not available"));
+      return;
+    }
+
     chrome.runtime.sendMessage(message, response => {
       if (chrome.runtime.lastError) {
         reject(chrome.runtime.lastError);
@@ -108,14 +161,13 @@ document.addEventListener("mousemove", async (event: MouseEvent) => {
         if (entry) {
           matchedWord = candidate;
           matchedDef = entry.english;
-          matchedPinyin = entry.pinyin;
+          matchedPinyin = convertPinyinTones(entry.pinyin);
           matchedLength = len;
           break;
         }
       }
 
       if (matchedWord && matchedLength > 0) {
-        console.log(matchedPinyin);
         selectWord(textNode, offset, offset + matchedLength);
         showPopupAtSelection(event, matchedDef, matchedPinyin);
       } else {
