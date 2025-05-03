@@ -63,13 +63,13 @@ function selectWord(node: Text, start: number, end: number) {
   selection.addRange(range);
 }
 
-function showPopupAtSelection(event: MouseEvent, definition: string, pinyin: string) {
+function showPopupAtSelection(event: MouseEvent, traditional: string, pinyin: string, definition: string) {
   const existingPopup = document.querySelector(".custom-popup");
   if (existingPopup) existingPopup.remove();
 
   const popup = document.createElement("div");
   popup.className = "custom-popup";
-  popup.textContent = `${definition}, ${pinyin}`;
+  popup.innerHTML = `${traditional} ${pinyin} <br>${definition}`;
   popup.style.position = "absolute";
   popup.style.backgroundColor = "#f0f0f0";
   popup.style.border = "1px solid #ccc";
@@ -109,7 +109,7 @@ function sendMessageAsync<T = unknown>(message: object): Promise<T> {
   });
 }
 
-let rawDataCache: { traditional: string; english: string; pinyin: string }[] | null = null;
+let rawDataCache: { traditional: string; pinyin: string; english: string }[] | null = null;
 let lastTarget: Node | null = null;
 let lastIndex: number | null = null;
 
@@ -141,15 +141,16 @@ document.addEventListener("mousemove", async (event: MouseEvent) => {
 
     try {
       if (!rawDataCache) {
-        rawDataCache = await sendMessageAsync<{ traditional: string; english: string; pinyin: string }[]>({
+        rawDataCache = await sendMessageAsync<{ traditional: string; pinyin: string; english: string }[]>({
           type: "RAWDATA",
         });
       }
 
       const maxLength = 10;
       let matchedWord = "";
-      let matchedDef = "";
+      let matchedTraditional = "";
       let matchedPinyin = "";
+      let matchedDef = "";
       let matchedLength = 0;
 
       for (let len = maxLength; len > 0; len--) {
@@ -160,8 +161,9 @@ document.addEventListener("mousemove", async (event: MouseEvent) => {
         const entry = rawDataCache.find(e => e.traditional === candidate);
         if (entry) {
           matchedWord = candidate;
-          matchedDef = entry.english;
+          matchedTraditional = entry.traditional;
           matchedPinyin = convertPinyinTones(entry.pinyin);
+          matchedDef = entry.english;
           matchedLength = len;
           break;
         }
@@ -169,12 +171,12 @@ document.addEventListener("mousemove", async (event: MouseEvent) => {
 
       if (matchedWord && matchedLength > 0) {
         selectWord(textNode, offset, offset + matchedLength);
-        showPopupAtSelection(event, matchedDef, matchedPinyin);
+        showPopupAtSelection(event, matchedTraditional, matchedPinyin, matchedDef);
       } else {
         selectWord(textNode, offset, offset + 1);
         const charEntry = rawDataCache.find(e => e.traditional === text[offset]);
         if (charEntry) {
-          showPopupAtSelection(event, charEntry.english, matchedPinyin);
+          showPopupAtSelection(event, matchedTraditional, matchedPinyin, charEntry.english);
         }
       }
     } catch (error) {
