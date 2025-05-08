@@ -12,6 +12,8 @@ function convertPinyinTones(input: string) {
     ü: ["ǖ", "ǘ", "ǚ", "ǜ"],
   };
 
+  const toneColors = ["#D65A31", "#E3B34E", "#3A506B", "#6A994E"];
+
   return input
     .split(" ")
     .map(word => {
@@ -20,7 +22,11 @@ function convertPinyinTones(input: string) {
 
       const toneNumber = parseInt(toneMatch[0], 10);
       const toneIndex = toneNumber - 1; // 1 → 0th index, etc.
-      const cleanWord = word.replace(/[1-5]/, "");
+
+      // Match u: or v, g means global (replace all occurrences)
+      const normalized = word.replace(/u:|v/g, "ü");
+
+      const cleanWord = normalized.replace(/[1-5]/, "");
 
       // Determine the vowel that should get the tone
       const priority = ["a", "o", "e"];
@@ -34,6 +40,10 @@ function convertPinyinTones(input: string) {
         target = cleanWord.split("").find(l => "aeiouü".includes(l));
       }
 
+      //TODO - Change the color according to the tone
+
+      // Tone 1, 2, 3, 4: red, yellow, blue, green
+
       // Replace the target vowel with the tone-marked version
       const result = cleanWord
         .split("")
@@ -45,9 +55,10 @@ function convertPinyinTones(input: string) {
         })
         .join("");
 
-      return result;
+      const color = toneColors[toneIndex] || "black";
+      return `<span style="color: ${color}; font-weight: bold">${result}</span>`;
     })
-    .join(" ");
+    .join("");
 }
 
 function selectWord(node: Text, start: number, end: number) {
@@ -67,29 +78,50 @@ function showPopupAtSelection(event: MouseEvent, traditional: string, pinyin: st
   const existingPopup = document.querySelector(".custom-popup");
   if (existingPopup) existingPopup.remove();
 
+  // TODO - Style it as Figma
+  const popupParent = document.createElement("div");
   const popup = document.createElement("div");
-  popup.className = "custom-popup";
+
+  /* Popup Child */
+
+  // popup.className = "custom-popup";
+
   popup.innerHTML = `${traditional} ${pinyin} <br>${definition}`;
-  popup.style.position = "absolute";
-  popup.style.backgroundColor = "#f0f0f0";
-  popup.style.border = "1px solid #ccc";
-  popup.style.padding = "6px 10px";
-  popup.style.borderRadius = "6px";
+  // popup.style.position = "absolute";
+  popup.style.backgroundColor = "#ffffff";
+  // popup.style.border = "1px solid #ccc";
+  popup.style.padding = "10px";
+  popup.style.borderRadius = "15px";
   popup.style.boxShadow = "0px 4px 8px rgba(0, 0, 0, 0.2)";
-  popup.style.zIndex = "10000";
+
+  /* Popup Child */
+
+  /* Popup Parent */
+
+  popupParent.className = "custom-popup";
+  popupParent.style.position = "absolute";
+  popupParent.style.backgroundColor = "#393E46";
+  popupParent.style.padding = "5px 8px 12px 8px";
+  popupParent.style.borderRadius = "15px";
+
+  popupParent.style.zIndex = "10000";
+
+  popupParent.appendChild(popup);
+
+  /* Popup Parent */
 
   const selection = window.getSelection();
   if (selection && selection.rangeCount > 0) {
     const rects = selection.getRangeAt(0).getClientRects();
     if (rects.length > 0) {
       const rect = rects[0];
-      popup.style.left = `${window.scrollX + rect.left}px`;
-      popup.style.top = `${window.scrollY + rect.top - 60}px`;
+      popupParent.style.left = `${window.scrollX + rect.left}px`;
+      popupParent.style.top = `${window.scrollY + rect.top - 60}px`;
     }
   }
 
-  document.body.appendChild(popup);
-  setTimeout(() => popup.remove(), 4000);
+  document.body.appendChild(popupParent);
+  setTimeout(() => popupParent.remove(), 4000);
 }
 
 function sendMessageAsync<T = unknown>(message: object): Promise<T> {
