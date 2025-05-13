@@ -17,6 +17,9 @@ const packageJson = JSON.parse(readFileSync("./package.json", "utf8"));
  * @prop content_scripts
  * css: ['content.css'], // public folder
  */
+
+//TODO - Allow Incognito Feature
+
 const manifest = {
   manifest_version: 3,
   default_locale: "en",
