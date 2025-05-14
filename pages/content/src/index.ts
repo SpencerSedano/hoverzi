@@ -56,10 +56,12 @@ function convertPinyinTones(input: string) {
         .join("");
 
       const color = toneColors[toneIndex] || "black";
-      return `<span style="color: ${color}; font-weight: bold">${result}</span>`;
+      return `<span style="color: ${color}; font-weight: bold; font-size: 24px">${result}</span>`;
     })
     .join("");
 }
+
+/* SELECT WORD FUNCTION */
 
 function selectWord(node: Text, start: number, end: number) {
   const range = document.createRange();
@@ -68,11 +70,15 @@ function selectWord(node: Text, start: number, end: number) {
 
   const clampedEnd = Math.min(end, node.length);
 
+  //FIXME - removeAllRanges should be with mouseout, not mouseover
+
   selection.removeAllRanges();
   range.setStart(node, start);
   range.setEnd(node, clampedEnd);
   selection.addRange(range);
 }
+
+/* SELECT WORD FUNCTION */
 
 function showPopupAtSelection(event: MouseEvent, traditional: string, pinyin: string, definition: string) {
   const existingPopup = document.querySelector(".custom-popup");
@@ -86,10 +92,8 @@ function showPopupAtSelection(event: MouseEvent, traditional: string, pinyin: st
 
   // popup.className = "custom-popup";
 
-  popup.innerHTML = `${traditional} ${pinyin} <br>${definition}`;
-  // popup.style.position = "absolute";
+  popup.innerHTML = `<span style="font-size: 24px">${traditional}</span> ${pinyin} <br>${definition}`;
   popup.style.backgroundColor = "#ffffff";
-  // popup.style.border = "1px solid #ccc";
   popup.style.padding = "10px";
   popup.style.borderRadius = "15px";
   popup.style.boxShadow = "0px 4px 8px rgba(0, 0, 0, 0.2)";
@@ -116,12 +120,15 @@ function showPopupAtSelection(event: MouseEvent, traditional: string, pinyin: st
     if (rects.length > 0) {
       const rect = rects[0];
       popupParent.style.left = `${window.scrollX + rect.left}px`;
-      popupParent.style.top = `${window.scrollY + rect.top - 60}px`;
+      popupParent.style.top = `${window.scrollY + rect.top + 40}px`;
     }
+  }
+  if (!selection) {
+    popupParent.style.display = "none";
   }
 
   document.body.appendChild(popupParent);
-  setTimeout(() => popupParent.remove(), 4000);
+  // setTimeout(() => popupParent.remove(), 4000);
 }
 
 function sendMessageAsync<T = unknown>(message: object): Promise<T> {
@@ -145,6 +152,8 @@ let rawDataCache: { traditional: string; pinyin: string; english: string }[] | n
 let lastTarget: Node | null = null;
 let lastIndex: number | null = null;
 
+/* MOUSEMOVE STARTS HERE */
+
 document.addEventListener("mousemove", async (event: MouseEvent) => {
   const handleMouseMove = async () => {
     let range: Range | null = null;
@@ -164,9 +173,9 @@ document.addEventListener("mousemove", async (event: MouseEvent) => {
     const offset = range.startOffset;
     const text = textNode.textContent || "";
 
-    if (offset >= text.length || !isChinese(text[offset])) return;
+    // if (offset >= text.length || !isChinese(text[offset])) return;
 
-    if (lastTarget === textNode && lastIndex === offset) return;
+    // if (lastTarget === textNode && lastIndex === offset) return;
 
     lastTarget = textNode;
     lastIndex = offset;
@@ -218,3 +227,5 @@ document.addEventListener("mousemove", async (event: MouseEvent) => {
 
   handleMouseMove();
 });
+
+/* MOUSEMOVE STARTS HERE */
