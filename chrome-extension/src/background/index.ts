@@ -2,7 +2,7 @@ import "webextension-polyfill";
 import { exampleThemeStorage } from "@extension/storage";
 
 // Importing Functions
-import { loadDictionary, rawData } from "./loadDictionary";
+import { loadDictionary, dictionaryData } from "./loadDictionary";
 
 exampleThemeStorage.get().then(theme => {
   console.log("theme", theme);
@@ -47,7 +47,7 @@ chrome.runtime.onInstalled.addListener(loadDictionary);
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.type === "RAWDATA") {
-    sendResponse(rawData);
+    sendResponse(dictionaryData);
   }
   return true; //Must return true
 });

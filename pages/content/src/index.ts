@@ -123,9 +123,9 @@ function showPopupAtSelection(event: MouseEvent, traditional: string, pinyin: st
       popupParent.style.top = `${window.scrollY + rect.top + 40}px`;
     }
   }
-  if (!selection) {
-    popupParent.style.display = "none";
-  }
+  // if (!selection) {
+  //   popupParent.style.display = "none";
+  // }
 
   document.body.appendChild(popupParent);
   // setTimeout(() => popupParent.remove(), 4000);
@@ -160,10 +160,13 @@ document.addEventListener("mousemove", async (event: MouseEvent) => {
 
     if (document.caretPositionFromPoint) {
       const position = document.caretPositionFromPoint(event.clientX, event.clientY);
+      console.log(position);
       if (position) {
         range = document.createRange();
         range.setStart(position.offsetNode, position.offset);
         range.setEnd(position.offsetNode, position.offset);
+      } else {
+        return;
       }
     }
 
@@ -175,7 +178,7 @@ document.addEventListener("mousemove", async (event: MouseEvent) => {
 
     // if (offset >= text.length || !isChinese(text[offset])) return;
 
-    // if (lastTarget === textNode && lastIndex === offset) return;
+    if (lastTarget === textNode && lastIndex === offset) return;
 
     lastTarget = textNode;
     lastIndex = offset;

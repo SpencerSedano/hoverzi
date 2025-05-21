@@ -6,20 +6,20 @@ type Entry = {
 };
 
 // let dictionaryMap: Record<string, Entry> = {};
-let rawData: Entry[];
+let dictionaryData: Entry[];
 
 export async function loadDictionary() {
   const res = await fetch(chrome.runtime.getURL("data.json"));
   console.log("Fetch status:", res.status); // should be 200
-  rawData = await res.json();
+  dictionaryData = await res.json();
 
-  // console.log("Raw dictionary entries loaded:", rawData[4232].traditional);
+  // console.log("Raw dictionary entries loaded:", dictionaryData[4232].traditional);
   // dictionaryMap = {};
 
-  // for (const entry of rawData) {
+  // for (const entry of dictionaryData) {
   //   dictionaryMap[entry.traditional] = entry;
   //   dictionaryMap[entry.simplified] = entry;
   // }
 }
 
-export { rawData };
+export { dictionaryData };
