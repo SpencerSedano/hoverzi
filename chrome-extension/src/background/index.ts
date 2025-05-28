@@ -10,6 +10,28 @@ exampleThemeStorage.get().then(theme => {
 
 console.log("Background loaded");
 
+let dictionaryLoaded = false;
+
+chrome.runtime.onInstalled.addListener(async () => {
+  await loadDictionary();
+  dictionaryLoaded = true;
+  console.log(" loaded in background");
+});
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.type === "RAWDATA") {
+    if (!dictionaryLoaded) {
+      loadDictionary().then(() => {
+        dictionaryLoaded = true;
+        sendResponse(dictionaryData);
+      });
+    } else {
+      sendResponse(dictionaryData);
+    }
+    return true;
+  }
+});
+
 // type Entry = {
 //   traditional: string;
 //   simplified: string;
@@ -40,16 +62,18 @@ console.log("Background loaded");
 //   console.log(Object.values(dictionaryMap).slice(50, 100));
 // }
 
-chrome.runtime.onInstalled.addListener(loadDictionary);
+// chrome.runtime.onInstalled.addListener(loadDictionary);
+// console.log(loadDictionary);
+// console.log(dictionaryData);
 // chrome.runtime.onStartup.addListener(loadDictionary);
 
 /*PASS VALUE OF RAWDATA TO CONTENT*/
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.type === "RAWDATA") {
-    sendResponse(dictionaryData);
-  }
-  return true; //Must return true
-});
+// chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+//   if (request.type === "RAWDATA") {
+//     sendResponse(dictionaryData);
+//   }
+//   return true; //Must return true
+// });
 
 /*PASS VALUE OF RAWDATA TO CONTENT*/
