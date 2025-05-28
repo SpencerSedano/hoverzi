@@ -176,7 +176,7 @@ document.addEventListener("mousemove", async (event: MouseEvent) => {
     const offset = range.startOffset;
     const text = textNode.textContent || "";
 
-    // if (offset >= text.length || !isChinese(text[offset])) return;
+    if (offset >= text.length || !isChinese(text[offset])) return;
 
     if (lastTarget === textNode && lastIndex === offset) return;
 
