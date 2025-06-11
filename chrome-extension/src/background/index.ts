@@ -18,6 +18,7 @@ chrome.runtime.onInstalled.addListener(async () => {
   console.log(" loaded in background");
 });
 
+//FIXME - Warning
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.type === "RAWDATA") {
     if (!dictionaryLoaded) {
