@@ -18,6 +18,8 @@ chrome.runtime.onInstalled.addListener(async () => {
   console.log(" loaded in background");
 });
 
+//TODO - Add Chinese to Spanish
+
 //FIXME - Warning
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.type === "RAWDATA") {
