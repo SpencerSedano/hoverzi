@@ -92,7 +92,7 @@ function showPopupAtSelection(event: MouseEvent, traditional: string, pinyin: st
 
   // popup.className = "custom-popup";
 
-  popup.innerHTML = `<span style="font-size: 24px">${traditional}</span> ${pinyin} <br>${definition}`;
+  popup.innerHTML = `<span style="font-size: 24px; color: black">${traditional}</span> ${pinyin} <br> <span style="color: black">${definition}<span>`;
   popup.style.backgroundColor = "#ffffff";
   popup.style.padding = "10px";
   popup.style.borderRadius = "15px";
