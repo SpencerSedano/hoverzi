@@ -82,7 +82,7 @@ function selectWord(node: Text, start: number, end: number) {
 
 function showPopupAtSelection(event: MouseEvent, traditional: string, pinyin: string, definition: string) {
   const existingPopup = document.querySelector(".custom-popup");
-  if (existingPopup) existingPopup.remove();
+  if (existingPopup) existingPopup.remove(); // Don't let having duplicates, but still have 1 popup
 
   // TODO - Style it as Figma
   const popupParent = document.createElement("div");
@@ -153,6 +153,7 @@ function sendMessageAsync<T = unknown>(message: object): Promise<T> {
 let rawDataCache: { traditional: string; pinyin: string; english: string[] }[] | null = null;
 let lastTarget: Node | null = null;
 let lastIndex: number | null = null;
+let isHoverSelection = false;
 
 /* MOUSEMOVE STARTS HERE */
 
@@ -162,7 +163,7 @@ document.addEventListener("mousemove", async (event: MouseEvent) => {
 
     if (document.caretPositionFromPoint) {
       const position = document.caretPositionFromPoint(event.clientX, event.clientY);
-      console.log(position);
+      console.log("Position to place the popupwindow:", position);
       if (position) {
         range = document.createRange();
         range.setStart(position.offsetNode, position.offset);
@@ -227,13 +228,18 @@ document.addEventListener("mousemove", async (event: MouseEvent) => {
       }
 
       if (matchedWord && matchedLength > 0) {
+        isHoverSelection = true;
         selectWord(textNode, offset, offset + matchedLength);
         showPopupAtSelection(event, matchedTraditional, matchedPinyin, matchedEnglish);
       } else {
+        isHoverSelection = true;
+
         selectWord(textNode, offset, offset + 1);
         const charEntry = rawDataCache.find(e => e.traditional === text[offset]);
         if (charEntry) {
           showPopupAtSelection(event, matchedTraditional, matchedPinyin, charEntry.english[0]);
+        } else {
+          return;
         }
       }
     } catch (error) {
@@ -242,6 +248,31 @@ document.addEventListener("mousemove", async (event: MouseEvent) => {
   };
 
   handleMouseMove();
+
+  // Cleanup: if not hovering a Chinese character, clear selection and popup
+  let charUnderMouse = "";
+  if (document.caretPositionFromPoint) {
+    const pos = document.caretPositionFromPoint(event.clientX, event.clientY);
+    if (pos?.offsetNode?.nodeType === Node.TEXT_NODE) {
+      const node = pos.offsetNode as Text;
+      const char = node.textContent?.[pos.offset] || "";
+      charUnderMouse = char;
+    }
+  }
+
+  const isHoveringChinese = isChinese(charUnderMouse);
+
+  if (!isHoveringChinese && isHoverSelection) {
+    const selection = window.getSelection();
+    if (selection) selection.removeAllRanges();
+
+    const popup = document.querySelector(".custom-popup");
+    if (popup) popup.remove();
+
+    lastTarget = null;
+    lastIndex = null;
+    isHoverSelection = false;
+  }
 });
 
 /* MOUSEMOVE STARTS HERE */
