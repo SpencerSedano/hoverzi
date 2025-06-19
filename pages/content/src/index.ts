@@ -23,12 +23,14 @@ function convertPinyinTones(input: string) {
       const toneNumber = parseInt(toneMatch[0], 10);
       const toneIndex = toneNumber - 1; // 1 → 0th index, etc.
 
-      // Match u: or v, g means global (replace all occurrences)
-      const normalized = word.replace(/u:|v/g, "ü");
+      // Match u:, /g means global (replace all occurrences)
+      const normalized = word.replace(/u:/g, "ü");
 
+      // No numbers within the word, check data.json for more understanding
       const cleanWord = normalized.replace(/[1-5]/, "");
 
       // Determine the vowel that should get the tone
+      // There is actually a rule to determine which one will have the tone
       const priority = ["a", "o", "e"];
       let target = priority.find(v => cleanWord.includes(v));
 
@@ -39,8 +41,6 @@ function convertPinyinTones(input: string) {
       } else if (!target) {
         target = cleanWord.split("").find(l => "aeiouü".includes(l));
       }
-
-      //TODO - Change the color according to the tone
 
       // Tone 1, 2, 3, 4: red, yellow, blue, green
 
@@ -61,16 +61,21 @@ function convertPinyinTones(input: string) {
     .join("");
 }
 
-/* SELECT WORD FUNCTION */
+function clearSelectionAndPopup() {
+  const selection = window.getSelection();
+  if (selection) selection.removeAllRanges();
 
+  const popup = document.querySelector(".custom-popup");
+  if (popup) popup.remove();
+}
+
+/* SELECT WORD FUNCTION */
 function selectWord(node: Text, start: number, end: number) {
   const range = document.createRange();
   const selection = window.getSelection();
   if (!selection) return;
 
   const clampedEnd = Math.min(end, node.length);
-
-  //FIXME - removeAllRanges should be with mouseout, not mouseover
 
   selection.removeAllRanges();
   range.setStart(node, start);
@@ -79,7 +84,6 @@ function selectWord(node: Text, start: number, end: number) {
 }
 
 /* SHOW POPUP FUNCTION */
-
 function showPopupAtSelection(event: MouseEvent, traditional: string, pinyin: string, definition: string) {
   const existingPopup = document.querySelector(".custom-popup");
   if (existingPopup) existingPopup.remove(); // Don't let having duplicates, but still have 1 popup
@@ -97,8 +101,6 @@ function showPopupAtSelection(event: MouseEvent, traditional: string, pinyin: st
   popup.style.padding = "10px";
   popup.style.borderRadius = "15px";
   popup.style.boxShadow = "0px 4px 8px rgba(0, 0, 0, 0.2)";
-
-  /* Popup Child */
 
   /* Popup Parent */
 
@@ -150,6 +152,56 @@ function sendMessageAsync<T = unknown>(message: object): Promise<T> {
   });
 }
 
+function isPointOverText(x: number, y: number): boolean {
+  const element = document.elementFromPoint(x, y);
+  if (!element) return false;
+
+  const computedStyle = window.getComputedStyle(element);
+  const fontSize = parseFloat(computedStyle.fontSize);
+
+  if (fontSize === 0) return false;
+
+  return (
+    element.tagName !== "IMG" &&
+    element.tagName !== "VIDEO" &&
+    !element.hasAttribute("contenteditable") &&
+    computedStyle.display !== "none" &&
+    computedStyle.visibility !== "hidden"
+  );
+}
+
+function getActualCharacterAtPoint(x: number, y: number): { node: Text; offset: number; char: string } | null {
+  if (!document.caretPositionFromPoint) return null;
+
+  const position = document.caretPositionFromPoint(x, y);
+  if (!position || position.offsetNode.nodeType !== Node.TEXT_NODE) return null;
+
+  const textNode = position.offsetNode as Text;
+  const text = textNode.textContent || "";
+  const offset = Math.min(position.offset, text.length - 1);
+
+  if (offset < 0 || offset >= text.length) return null;
+
+  const char = text[offset];
+  if (!char || char.trim() === "") return null;
+
+  const range = document.createRange();
+  range.setStart(textNode, offset);
+  range.setEnd(textNode, offset + 1);
+  const rect = range.getBoundingClientRect();
+  // console.log("testing now", rect);
+
+  const toleranceX = rect.width * 0.6;
+  const toleranceY = rect.height * 0.6;
+  const isWithinBounds =
+    x >= rect.left - toleranceX &&
+    x <= rect.right + toleranceX &&
+    y >= rect.top - toleranceY &&
+    y <= rect.bottom + toleranceY;
+
+  return isWithinBounds ? { node: textNode, offset, char } : null;
+}
+
 let rawDataCache: { traditional: string; pinyin: string; english: string[] }[] | null = null;
 let lastTarget: Node | null = null;
 let lastIndex: number | null = null;
@@ -159,27 +211,38 @@ let isHoverSelection = false;
 
 document.addEventListener("mousemove", async (event: MouseEvent) => {
   const handleMouseMove = async () => {
-    let range: Range | null = null;
-
-    if (document.caretPositionFromPoint) {
-      const position = document.caretPositionFromPoint(event.clientX, event.clientY);
-      console.log("Position to place the popupwindow:", position);
-      if (position) {
-        range = document.createRange();
-        range.setStart(position.offsetNode, position.offset);
-        range.setEnd(position.offsetNode, position.offset);
-      } else {
-        return;
+    if (!isPointOverText(event.clientX, event.clientY)) {
+      if (isHoverSelection) {
+        clearSelectionAndPopup();
+        lastTarget = null;
+        lastIndex = null;
+        isHoverSelection = false;
       }
+      return;
     }
 
-    if (!range || range.startContainer.nodeType !== Node.TEXT_NODE) return;
+    const charInfo = getActualCharacterAtPoint(event.clientX, event.clientY);
+    if (!charInfo) {
+      if (isHoverSelection) {
+        clearSelectionAndPopup();
+        lastTarget = null;
+        lastIndex = null;
+        isHoverSelection = false;
+      }
+      return;
+    }
 
-    const textNode = range.startContainer as Text;
-    const offset = range.startOffset;
-    const text = textNode.textContent || "";
+    const { node: textNode, offset, char } = charInfo;
 
-    if (offset >= text.length || !isChinese(text[offset])) return;
+    if (!isChinese(char)) {
+      if (isHoverSelection) {
+        clearSelectionAndPopup();
+        lastTarget = null;
+        lastIndex = null;
+        isHoverSelection = false;
+      }
+      return;
+    }
 
     if (lastTarget === textNode && lastIndex === offset) return;
 
@@ -194,6 +257,7 @@ document.addEventListener("mousemove", async (event: MouseEvent) => {
       }
 
       const maxLength = 10;
+      const text = textNode.textContent || "";
 
       let matchedWord = "";
       let matchedTraditional = "";
@@ -231,10 +295,18 @@ document.addEventListener("mousemove", async (event: MouseEvent) => {
         isHoverSelection = true;
         selectWord(textNode, offset, offset + matchedLength);
         showPopupAtSelection(event, matchedTraditional, matchedPinyin, matchedEnglish);
+        // const selection = window.getSelection();
+        // const getRange = selection?.getRangeAt(0);
+        // const getRect = getRange?.getBoundingClientRect();
+        // // console.log(getRect);
       } else {
         isHoverSelection = true;
 
         selectWord(textNode, offset, offset + 1);
+        // const selection = window.getSelection();
+        // const getRange = selection?.getRangeAt(0);
+        // const getRect = getRange?.getBoundingClientRect();
+        // console.log(getRect);
         const charEntry = rawDataCache.find(e => e.traditional === text[offset]);
         if (charEntry) {
           showPopupAtSelection(event, matchedTraditional, matchedPinyin, charEntry.english[0]);
@@ -248,31 +320,9 @@ document.addEventListener("mousemove", async (event: MouseEvent) => {
   };
 
   handleMouseMove();
-
-  // Cleanup: if not hovering a Chinese character, clear selection and popup
-  let charUnderMouse = "";
-  if (document.caretPositionFromPoint) {
-    const pos = document.caretPositionFromPoint(event.clientX, event.clientY);
-    if (pos?.offsetNode?.nodeType === Node.TEXT_NODE) {
-      const node = pos.offsetNode as Text;
-      const char = node.textContent?.[pos.offset] || "";
-      charUnderMouse = char;
-    }
-  }
-
-  const isHoveringChinese = isChinese(charUnderMouse);
-
-  if (!isHoveringChinese && isHoverSelection) {
-    const selection = window.getSelection();
-    if (selection) selection.removeAllRanges();
-
-    const popup = document.querySelector(".custom-popup");
-    if (popup) popup.remove();
-
-    lastTarget = null;
-    lastIndex = null;
-    isHoverSelection = false;
-  }
 });
 
-/* MOUSEMOVE STARTS HERE */
+/* MOUSEMOVE LEAVE HERE */
+document.addEventListener("mouseleave", () => {
+  clearSelectionAndPopup();
+});
