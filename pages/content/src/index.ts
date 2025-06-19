@@ -119,10 +119,12 @@ function showPopupAtSelection(event: MouseEvent, traditional: string, pinyin: st
   const selection = window.getSelection();
   if (selection && selection.rangeCount > 0) {
     const rects = selection.getRangeAt(0).getClientRects();
+    console.log("Popup parent rects: ", rects);
+
     if (rects.length > 0) {
       const rect = rects[0];
       popupParent.style.left = `${window.scrollX + rect.left}px`;
-      popupParent.style.top = `${window.scrollY + rect.top + 40}px`;
+      popupParent.style.top = `${window.scrollY + (rect.top + rect.height)}px`;
     }
   }
   // if (!selection) {
@@ -191,8 +193,8 @@ function getActualCharacterAtPoint(x: number, y: number): { node: Text; offset: 
   const rect = range.getBoundingClientRect();
   // console.log("testing now", rect);
 
-  const toleranceX = rect.width * 0.6;
-  const toleranceY = rect.height * 0.6;
+  const toleranceX = rect.width * 0.8;
+  const toleranceY = rect.height * 0.4;
   const isWithinBounds =
     x >= rect.left - toleranceX &&
     x <= rect.right + toleranceX &&
