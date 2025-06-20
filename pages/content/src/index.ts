@@ -119,12 +119,12 @@ function showPopupAtSelection(event: MouseEvent, traditional: string, pinyin: st
   const selection = window.getSelection();
   if (selection && selection.rangeCount > 0) {
     const rects = selection.getRangeAt(0).getClientRects();
-    console.log("Popup parent rects: ", rects);
+    // console.log("Popup parent rects: ", rects);
 
     if (rects.length > 0) {
       const rect = rects[0];
       popupParent.style.left = `${window.scrollX + rect.left}px`;
-      popupParent.style.top = `${window.scrollY + (rect.top + rect.height)}px`;
+      popupParent.style.top = `${window.scrollY + (rect.top + (rect.height + 10))}px`;
     }
   }
   // if (!selection) {
