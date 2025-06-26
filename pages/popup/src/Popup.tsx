@@ -4,12 +4,14 @@ import { exampleThemeStorage } from "@extension/storage";
 import { t } from "@extension/i18n";
 import { ToggleButton } from "@extension/ui";
 
-const notificationOptions = {
-  type: "basic",
-  iconUrl: chrome.runtime.getURL("icon-34.png"),
-  title: "Injecting content script error",
-  message: "You cannot inject script here!",
-} as const;
+/*  */
+
+// const notificationOptions = {
+//   type: "basic",
+//   iconUrl: chrome.runtime.getURL("icon-34.png"),
+//   title: "Injecting content script error",
+//   message: "You cannot inject script here!",
+// } as const;
 
 const Popup = () => {
   const theme = useStorage(exampleThemeStorage);
@@ -18,25 +20,50 @@ const Popup = () => {
   const goGithubSite = () =>
     chrome.tabs.create({ url: "https://github.com/Jonghakseo/chrome-extension-boilerplate-react-vite" });
 
-  const injectContentScript = async () => {
-    const [tab] = await chrome.tabs.query({ currentWindow: true, active: true });
+  let turnOnOrOff: boolean;
 
-    if (tab.url!.startsWith("about:") || tab.url!.startsWith("chrome:")) {
-      chrome.notifications.create("inject-error", notificationOptions);
-    }
+  interface HoverziMessage {
+    hoverziStatus: boolean;
+  }
 
-    await chrome.scripting
-      .executeScript({
-        target: { tabId: tab.id! },
-        files: ["/content-runtime/index.iife.js"],
-      })
-      .catch(err => {
-        // Handling errors related to other paths
-        if (err.message.includes("Cannot access a chrome:// URL")) {
-          chrome.notifications.create("inject-error", notificationOptions);
-        }
+  function sendMessageAsync(message: HoverziMessage): Promise<boolean> {
+    return new Promise(resolve => {
+      chrome.runtime.sendMessage(message, response => {
+        resolve(response);
       });
-  };
+    });
+  }
+
+  async function turnOnHoverzi() {
+    turnOnOrOff = await sendMessageAsync({ hoverziStatus: true });
+
+    alert(`Status: ${turnOnOrOff}`);
+  }
+
+  async function turnOffHoverzi() {
+    turnOnOrOff = await sendMessageAsync({ hoverziStatus: false });
+    alert(`Status: ${turnOnOrOff}`);
+  }
+
+  // const injectContentScript = async () => {
+  //   const [tab] = await chrome.tabs.query({ currentWindow: true, active: true });
+
+  //   if (tab.url!.startsWith("about:") || tab.url!.startsWith("chrome:")) {
+  //     chrome.notifications.create("inject-error", notificationOptions);
+  //   }
+
+  //   await chrome.scripting
+  //     .executeScript({
+  //       target: { tabId: tab.id! },
+  //       files: ["/content-runtime/index.iife.js"],
+  //     })
+  //     .catch(err => {
+  //       // Handling errors related to other paths
+  //       if (err.message.includes("Cannot access a chrome:// URL")) {
+  //         chrome.notifications.create("inject-error", notificationOptions);
+  //       }
+  //     });
+  // };
 
   return (
     <div className={`App ${isLight ? "bg-slate-50" : "bg-gray-800"}`}>
@@ -44,17 +71,21 @@ const Popup = () => {
         <button onClick={goGithubSite}>
           <img src={chrome.runtime.getURL(logo)} className="App-logo" alt="logo" />
         </button>
-        <p>
-          Edit <code>pages/popup/src/Popup.tsx</code>
-        </p>
-        <button
+
+        <button className={"font-bold mt-4 py-1 px-4 rounded shadow"} onClick={turnOnHoverzi}>
+          On
+        </button>
+        <button className={"font-bold mt-4 py-1 px-4 rounded shadow"} onClick={turnOffHoverzi}>
+          Off
+        </button>
+        {/* <button
           className={
             "font-bold mt-4 py-1 px-4 rounded shadow hover:scale-105 " +
             (isLight ? "bg-blue-200 text-black" : "bg-gray-700 text-white")
           }
           onClick={injectContentScript}>
           Click to inject Content Script
-        </button>
+        </button> */}
         <ToggleButton>{t("toggleTheme")}</ToggleButton>
       </header>
     </div>
