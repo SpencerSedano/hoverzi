@@ -35,6 +35,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.hoverziStatus !== undefined) {
+    console.log(message.hoverziStatus);
+    sendResponse(message.hoverziStatus);
+  }
+  return true;
+});
+
 // type Entry = {
 //   traditional: string;
 //   simplified: string;

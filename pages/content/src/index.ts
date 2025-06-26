@@ -127,9 +127,6 @@ function showPopupAtSelection(event: MouseEvent, traditional: string, pinyin: st
       popupParent.style.top = `${window.scrollY + (rect.top + rect.height)}px`;
     }
   }
-  // if (!selection) {
-  //   popupParent.style.display = "none";
-  // }
 
   document.body.appendChild(popupParent);
   // setTimeout(() => popupParent.remove(), 4000);
@@ -212,16 +209,17 @@ let isHoverSelection = false;
 /* MOUSEMOVE STARTS HERE */
 
 document.addEventListener("mousemove", async (event: MouseEvent) => {
+  //FIXME - Let users select without remove their selection
   const handleMouseMove = async () => {
-    if (!isPointOverText(event.clientX, event.clientY)) {
-      if (isHoverSelection) {
-        clearSelectionAndPopup();
-        lastTarget = null;
-        lastIndex = null;
-        isHoverSelection = false;
-      }
-      return;
-    }
+    // if (!isPointOverText(event.clientX, event.clientY)) {
+    //   if (isHoverSelection) {
+    //     clearSelectionAndPopup();
+    //     lastTarget = null;
+    //     lastIndex = null;
+    //     isHoverSelection = false;
+    //   }
+    //   return;
+    // }
 
     const charInfo = getActualCharacterAtPoint(event.clientX, event.clientY);
     if (!charInfo) {

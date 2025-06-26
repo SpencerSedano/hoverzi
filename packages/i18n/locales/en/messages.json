@@ -1,11 +1,11 @@
 {
   "extensionDescription": {
-    "description": "Extension description",
-    "message": "Chrome extension boilerplate developed with Vite, React and Typescript"
+    "description": "Hoverzi translates from Chinese to English. Easily import saved words to Anki for review",
+    "message": "Developed by Spencer Sedano"
   },
   "extensionName": {
-    "description": "Extension name",
-    "message": "Chrome extension boilerplate"
+    "description": "Hoverzi",
+    "message": "Constantly adding more features"
   },
   "toggleTheme": {
     "message": "Toggle theme"
