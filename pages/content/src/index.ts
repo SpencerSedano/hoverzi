@@ -151,6 +151,7 @@ function sendMessageAsync<T = unknown>(message: object): Promise<T> {
   });
 }
 
+//FIXME - Check if isPointOverText is needed or not
 function isPointOverText(x: number, y: number): boolean {
   const element = document.elementFromPoint(x, y);
   if (!element) return false;
