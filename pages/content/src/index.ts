@@ -61,26 +61,46 @@ function convertPinyinTones(input: string) {
     .join("");
 }
 
-function clearSelectionAndPopup() {
+let userIsSelecting = false;
+let hoverActive = false;
+
+function clearHoverOnlySelection() {
+  if (!hoverActive) return;
+
   const selection = window.getSelection();
-  if (selection) selection.removeAllRanges();
+  if (selection && !userIsSelecting) {
+    selection.removeAllRanges();
+  }
 
   const popup = document.querySelector(".custom-popup");
   if (popup) popup.remove();
+
+  hoverActive = false;
 }
+
+// function clearSelectionAndPopup() {
+//   const selection = window.getSelection();
+//   if (selection) selection.removeAllRanges();
+
+//   const popup = document.querySelector(".custom-popup");
+//   if (popup) popup.remove();
+// }
 
 /* SELECT WORD FUNCTION */
 function selectWord(node: Text, start: number, end: number) {
+  if (userIsSelecting) return; // Don't interfere with user selection
+
   const range = document.createRange();
   const selection = window.getSelection();
   if (!selection) return;
 
   const clampedEnd = Math.min(end, node.length);
-
   selection.removeAllRanges();
   range.setStart(node, start);
   range.setEnd(node, clampedEnd);
   selection.addRange(range);
+
+  hoverActive = true;
 }
 
 /* SHOW POPUP FUNCTION */
@@ -205,125 +225,105 @@ function getActualCharacterAtPoint(x: number, y: number): { node: Text; offset: 
 let rawDataCache: { traditional: string; pinyin: string; english: string[] }[] | null = null;
 let lastTarget: Node | null = null;
 let lastIndex: number | null = null;
-let isHoverSelection = false;
+// let isHoverSelection = false;
 
 /* MOUSEMOVE STARTS HERE */
 
 document.addEventListener("mousemove", async (event: MouseEvent) => {
-  //FIXME - Let users select without remove their selection
-  const handleMouseMove = async () => {
-    // if (!isPointOverText(event.clientX, event.clientY)) {
-    //   if (isHoverSelection) {
-    //     clearSelectionAndPopup();
-    //     lastTarget = null;
-    //     lastIndex = null;
-    //     isHoverSelection = false;
-    //   }
-    //   return;
-    // }
+  if (userIsSelecting) return; // Skip while user is selecting
 
-    const charInfo = getActualCharacterAtPoint(event.clientX, event.clientY);
-    if (!charInfo) {
-      if (isHoverSelection) {
-        clearSelectionAndPopup();
-        lastTarget = null;
-        lastIndex = null;
-        isHoverSelection = false;
-      }
-      return;
+  const charInfo = getActualCharacterAtPoint(event.clientX, event.clientY);
+
+  if (!charInfo) {
+    clearHoverOnlySelection();
+    lastTarget = null;
+    lastIndex = null;
+    return;
+  }
+
+  const { node: textNode, offset, char } = charInfo;
+
+  if (!isChinese(char)) {
+    clearHoverOnlySelection();
+    lastTarget = null;
+    lastIndex = null;
+    return;
+  }
+
+  if (lastTarget === textNode && lastIndex === offset) return;
+
+  lastTarget = textNode;
+  lastIndex = offset;
+
+  try {
+    if (!rawDataCache) {
+      rawDataCache = await sendMessageAsync<{ traditional: string; pinyin: string; english: string[] }[]>({
+        type: "RAWDATA",
+      });
     }
 
-    const { node: textNode, offset, char } = charInfo;
+    const maxLength = 10;
+    const text = textNode.textContent || "";
+    let matchedWord = "";
+    let matchedTraditional = "";
+    let matchedPinyin = "";
+    let matchedDef: string[];
+    let matchedEnglish = "";
+    let matchedLength = 0;
 
-    if (!isChinese(char)) {
-      if (isHoverSelection) {
-        clearSelectionAndPopup();
-        lastTarget = null;
-        lastIndex = null;
-        isHoverSelection = false;
+    for (let len = maxLength; len > 0; len--) {
+      const end = offset + len;
+      if (end > text.length) continue;
+      const candidate = text.slice(offset, end);
+      const entry = rawDataCache.find(e => e.traditional === candidate);
+      if (entry) {
+        matchedWord = candidate;
+        matchedTraditional = entry.traditional;
+        matchedPinyin = convertPinyinTones(entry.pinyin);
+        matchedDef = entry.english.slice(0, 2);
+        matchedEnglish = matchedDef.join(", ");
+        matchedLength = len;
+        break;
       }
-      return;
     }
 
-    if (lastTarget === textNode && lastIndex === offset) return;
-
-    lastTarget = textNode;
-    lastIndex = offset;
-
-    try {
-      if (!rawDataCache) {
-        rawDataCache = await sendMessageAsync<{ traditional: string; pinyin: string; english: string[] }[]>({
-          type: "RAWDATA",
-        });
+    if (matchedWord && matchedLength > 0) {
+      selectWord(textNode, offset, offset + matchedLength);
+      showPopupAtSelection(event, matchedTraditional, matchedPinyin, matchedEnglish);
+    } else {
+      selectWord(textNode, offset, offset + 1);
+      const charEntry = rawDataCache.find(e => e.traditional === text[offset]);
+      if (charEntry) {
+        showPopupAtSelection(event, text[offset], "", charEntry.english[0]);
       }
-
-      const maxLength = 10;
-      const text = textNode.textContent || "";
-
-      let matchedWord = "";
-      let matchedTraditional = "";
-      let matchedPinyin = "";
-      let matchedDef: string[];
-      let matchedEnglish = "";
-      let matchedLength = 0;
-
-      for (let len = maxLength; len > 0; len--) {
-        const end = offset + len;
-
-        if (end > text.length) continue;
-
-        const candidate = text.slice(offset, end);
-
-        // find is o(n)
-        // Map is o(1)
-        // const entryMap = new Map(rawDataCache.map(e => [e.traditional, e]));
-        // const entry = entryMap.get(candidate);
-
-        const entry = rawDataCache.find(e => e.traditional === candidate);
-
-        if (entry) {
-          matchedWord = candidate;
-          matchedTraditional = entry.traditional;
-          matchedPinyin = convertPinyinTones(entry.pinyin);
-          matchedDef = entry.english.slice(0, 2);
-          matchedEnglish = matchedDef.join(", ");
-          matchedLength = len;
-          break;
-        }
-      }
-
-      if (matchedWord && matchedLength > 0) {
-        isHoverSelection = true;
-        selectWord(textNode, offset, offset + matchedLength);
-        showPopupAtSelection(event, matchedTraditional, matchedPinyin, matchedEnglish);
-        // const selection = window.getSelection();
-        // const getRange = selection?.getRangeAt(0);
-        // const getRect = getRange?.getBoundingClientRect();
-        // // console.log(getRect);
-      } else {
-        isHoverSelection = true;
-
-        selectWord(textNode, offset, offset + 1);
-        // const selection = window.getSelection();
-        // const getRange = selection?.getRangeAt(0);
-        // const getRect = getRange?.getBoundingClientRect();
-        // console.log(getRect);
-        const charEntry = rawDataCache.find(e => e.traditional === text[offset]);
-        if (charEntry) {
-          showPopupAtSelection(event, matchedTraditional, matchedPinyin, charEntry.english[0]);
-        } else {
-          return;
-        }
-      }
-    } catch (error) {
-      console.error("Error loading or processing dictionary:", error);
     }
-  };
-
-  handleMouseMove();
+  } catch (error) {
+    console.error("Error loading or processing dictionary:", error);
+  }
 });
 
 /* MOUSEMOVE LEAVE HERE */
-document.addEventListener("mouseleave", () => {
-  clearSelectionAndPopup();
+// document.addEventListener("mouseleave", () => {
+//   clearSelectionAndPopup();
+// });
+
+// Track when user starts selecting
+document.addEventListener("mousedown", () => {
+  userIsSelecting = true;
+  clearHoverOnlySelection();
+});
+
+// Track when user finishes selecting
+document.addEventListener("mouseup", () => {
+  setTimeout(() => {
+    userIsSelecting = false;
+  }, 100); // Small delay to let selection complete
+});
+
+// Clear popup when clicking elsewhere (but not during selection)
+document.addEventListener("click", event => {
+  if (!userIsSelecting && !(event.target as Element).closest(".custom-popup")) {
+    const popup = document.querySelector(".custom-popup");
+    if (popup) popup.remove();
+  }
 });
