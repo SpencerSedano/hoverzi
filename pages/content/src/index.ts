@@ -104,7 +104,13 @@ function selectWord(node: Text, start: number, end: number) {
 }
 
 /* SHOW POPUP FUNCTION */
-function showPopupAtSelection(event: MouseEvent, traditional: string, pinyin: string, definition: string) {
+function showPopupAtSelection(
+  event: MouseEvent,
+  traditional: string,
+  pinyin: string,
+  definition: string,
+  star: string,
+) {
   const existingPopup = document.querySelector(".custom-popup");
   if (existingPopup) existingPopup.remove(); // Don't let having duplicates, but still have 1 popup
 
@@ -112,11 +118,21 @@ function showPopupAtSelection(event: MouseEvent, traditional: string, pinyin: st
   const popupParent = document.createElement("div");
   const popup = document.createElement("div");
 
+  const startWhiteSvg = `<svg width="30" height="31" viewBox="0 0 30 31" fill="none" xmlns="http://www.w3.  org/2000/svg">
+<path d="M9.87 2.96239C10.1875 1.5358 11.8775 0.920678 13.0378 1.80941L17.3941 5.14671C18.1962 5.76123 19.2017 6.04885 20.2076 5.95277L25.6704 5.43187C27.1253 5.29296 28.2327 6.71011 27.7461 8.08819L25.9184 13.2627C25.5818 14.2154 25.6183 15.2604 26.0205 16.1873L28.205 21.2213C28.7868 22.5622 27.7803 24.0545 26.3191 24.0174L20.833 23.8775C19.8231 23.8519 18.8408 24.2094 18.0836 24.8782L13.9709 28.5117C12.8755 29.4794 11.1451 28.9832 10.7289 27.5821L9.1666 22.3216C8.87887 21.3531 8.23515 20.5291 7.36493 20.0156L2.63869 17.2265C1.38011 16.4837 1.31751 14.6862 2.52131 13.8575L7.0409 10.7451C7.8732 10.1721 8.45861 9.30542 8.67806 8.31908L9.87 2.96239Z" fill="white" stroke="#FFD369" stroke-width="2"/>
+</svg>
+`;
+
+  const starYellowSvg = `<svg width="30" height="31" viewBox="0 0 30 31" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M9.87 2.96239C10.1875 1.5358 11.8775 0.920678 13.0378 1.80941L17.3941 5.14671C18.1962 5.76123 19.2017 6.04885 20.2076 5.95277L25.6704 5.43187C27.1253 5.29296 28.2327 6.71011 27.7461 8.08819L25.9184 13.2627C25.5818 14.2154 25.6183 15.2604 26.0205 16.1873L28.205 21.2213C28.7868 22.5622 27.7803 24.0545 26.3191 24.0174L20.833 23.8775C19.8231 23.8519 18.8408 24.2094 18.0836 24.8782L13.9709 28.5117C12.8755 29.4794 11.1451 28.9832 10.7289 27.5821L9.1666 22.3216C8.87887 21.3531 8.23515 20.5291 7.36493 20.0156L2.63869 17.2265C1.38011 16.4837 1.31751 14.6862 2.52131 13.8575L7.0409 10.7451C7.8732 10.1721 8.45861 9.30542 8.67806 8.31908L9.87 2.96239Z" fill="#FFD369" stroke="#FFD369" stroke-width="2"/>
+</svg>
+`;
+
   /* Popup Child */
 
   // popup.className = "custom-popup";
 
-  popup.innerHTML = `<span style="font-size: 24px; color: black">${traditional}</span> ${pinyin} <br> <span style="color: black">${definition}<span>`;
+  popup.innerHTML = `<span style="font-size: 24px; color: black">${traditional}</span> ${pinyin} <span>${startWhiteSvg}</span> <br> <span style="color: black">${definition}<span>`;
   popup.style.backgroundColor = "#ffffff";
   popup.style.padding = "10px";
   popup.style.borderRadius = "15px";
@@ -171,25 +187,6 @@ function sendMessageAsync<T = unknown>(message: object): Promise<T> {
   });
 }
 
-//FIXME - Check if isPointOverText is needed or not
-function isPointOverText(x: number, y: number): boolean {
-  const element = document.elementFromPoint(x, y);
-  if (!element) return false;
-
-  const computedStyle = window.getComputedStyle(element);
-  const fontSize = parseFloat(computedStyle.fontSize);
-
-  if (fontSize === 0) return false;
-
-  return (
-    element.tagName !== "IMG" &&
-    element.tagName !== "VIDEO" &&
-    !element.hasAttribute("contenteditable") &&
-    computedStyle.display !== "none" &&
-    computedStyle.visibility !== "hidden"
-  );
-}
-
 function getActualCharacterAtPoint(x: number, y: number): { node: Text; offset: number; char: string } | null {
   if (!document.caretPositionFromPoint) return null;
 
@@ -211,7 +208,7 @@ function getActualCharacterAtPoint(x: number, y: number): { node: Text; offset: 
   const rect = range.getBoundingClientRect();
   // console.log("testing now", rect);
 
-  const toleranceX = rect.width * 0.8;
+  const toleranceX = rect.width * 0.6;
   const toleranceY = rect.height * 0.4;
   const isWithinBounds =
     x >= rect.left - toleranceX &&
@@ -303,9 +300,6 @@ document.addEventListener("mousemove", async (event: MouseEvent) => {
 });
 
 /* MOUSEMOVE LEAVE HERE */
-// document.addEventListener("mouseleave", () => {
-//   clearSelectionAndPopup();
-// });
 
 // Track when user starts selecting
 document.addEventListener("mousedown", () => {
